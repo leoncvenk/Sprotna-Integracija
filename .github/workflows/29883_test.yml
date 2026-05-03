@@ -61,9 +61,9 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Run tests
+            - name: Run tests
         run: |
-          pytest 2> napaka.txt
+          pytest > pytest_output.txt 2> napaka.txt || true
 
       - name: Preveri rezultate testov
         run: |
@@ -71,6 +71,12 @@ jobs:
             echo "Napaka pri testih:"
             cat napaka.txt
             exit 1
-          else
-            echo "Vsi testi OK"
           fi
+
+          if grep -q "failed" pytest_output.txt; then
+            echo "Testi niso uspešni:"
+            cat pytest_output.txt
+            exit 1
+          fi
+
+          echo "Vsi testi OK"

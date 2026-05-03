@@ -1,1 +1,76 @@
+name: 29883_test
 
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  job1_preveri:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preveri ali obstajajo testi
+        run: |
+          echo "" > napaka.txt
+
+          if ls test_*.py 1> /dev/null 2>&1; then
+            echo "Testi obstajajo"
+          else
+            echo "NAPAKA: Ni testov!" > napaka.txt
+          fi
+
+      - name: Upload napaka.txt
+        uses: actions/upload-artifact@v4
+        with:
+          name: napaka
+          path: napaka.txt
+
+
+  job2_testiraj:
+    needs: job1_preveri
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [3.10, 3.11]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prenesi artefakt
+        uses: actions/download-artifact@v4
+        with:
+          name: napaka
+
+      - name: Preveri napaka.txt
+        run: |
+          if [ -s napaka.txt ]; then
+            echo "Napaka iz prvega joba:"
+            cat napaka.txt
+            exit 1
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          pytest 2> napaka.txt
+
+      - name: Preveri rezultate testov
+        run: |
+          if [ -s napaka.txt ]; then
+            echo "Napaka pri testih:"
+            cat napaka.txt
+            exit 1
+          else
+            echo "Vsi testi OK"
+          fi

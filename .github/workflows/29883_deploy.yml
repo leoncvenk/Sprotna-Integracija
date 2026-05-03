@@ -1,1 +1,30 @@
+name: 29883_deploy
 
+on:
+  workflow_run:
+    workflows: [ "29883_test" ]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Prenesi repozitorij
+        uses: actions/checkout@v4
+
+      - name: Prijava v DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Zgradi in potisni Docker sliko
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO }}:latest

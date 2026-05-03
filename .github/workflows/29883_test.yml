@@ -3,30 +3,31 @@ name: 29883_test
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   job1_preveri:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Prenesi repozitorij
+        uses: actions/checkout@v4
 
       - name: Preveri ali obstajajo testi
         run: |
-          echo "" > napaka.txt
+          : > napaka.txt
 
           if ls test_*.py 1> /dev/null 2>&1; then
-            echo "Testi obstajajo"
+            echo "Testne datoteke obstajajo."
           else
-            echo "NAPAKA: Ni testov!" > napaka.txt
+            echo "NAPAKA: Testne datoteke ne obstajajo." > napaka.txt
           fi
 
-      - name: Upload napaka.txt
+      - name: Shrani napaka.txt kot artefakt
         uses: actions/upload-artifact@v4
         with:
           name: napaka
           path: napaka.txt
-
 
   job2_testiraj:
     needs: job1_preveri
@@ -37,46 +38,42 @@ jobs:
         python-version: [ "3.10", "3.11" ]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Prenesi repozitorij
+        uses: actions/checkout@v4
 
       - name: Prenesi artefakt
         uses: actions/download-artifact@v4
         with:
           name: napaka
 
-      - name: Preveri napaka.txt
+      - name: Preveri napaka.txt iz prvega posla
         run: |
           if [ -s napaka.txt ]; then
-            echo "Napaka iz prvega joba:"
+            echo "Prvi job je našel napako:"
             cat napaka.txt
             exit 1
           fi
 
-      - name: Setup Python
+      - name: Nastavi Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Namesti odvisnosti
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run tests
+      - name: Zaženi teste
         run: |
-          pytest > pytest_output.txt 2> napaka.txt || true
+          : > napaka.txt
+          pytest || echo "NAPAKA: Testi niso uspešni." > napaka.txt
 
       - name: Preveri rezultate testov
         run: |
           if [ -s napaka.txt ]; then
-            echo "Napaka pri testih:"
             cat napaka.txt
             exit 1
           fi
 
-          if grep -q "failed" pytest_output.txt; then
-            echo "Testi niso uspešni:"
-            cat pytest_output.txt
-            exit 1
-          fi
-
-          echo "Vsi testi OK"
+          echo "Vsi testi so uspešni."
